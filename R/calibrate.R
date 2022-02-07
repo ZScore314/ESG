@@ -85,6 +85,9 @@ CalVasicek1f <- function(dat, dt = 1/12) {
 
   # r1 ~ Normal(r0 + k(m - r0), sigma)
 
+  if(!is.numeric(dat))
+    stop("Data input must be in the form of a numeric vector")
+
   n <- length(dat)
 
   x <- dat[-n]
@@ -102,6 +105,46 @@ CalVasicek1f <- function(dat, dt = 1/12) {
 
 
 }
+
+#' Calibrate 1-factor CIR Model using the Maximum Likelihood Estimator
+#'
+#' @param data numerical vector of time series data
+#' @param dt time step, default is monthly (1/12)
+#' @param shift optional shift to apply prior to fitting. This helps if negatie values may cause errors.
+#'
+#' @return a named list with parameters r0 - initial value,
+#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
+#' @export
+#'
+#' @examples
+CalCIR1f <- function(dat, dt = 1/12, shift = NULL) {
+
+  if(!is.numeric(dat))
+    stop("Data input must be in the form of a numeric vector")
+
+  # Apply shift to avoid negative interest rates
+  if (!is.null(shift))
+    dat <- dat + shift
+
+  dat <- tibble::tibble(r = dat)
+
+  dat <- dat %>%
+    dplyr::mutate(y = (r - dplyr::lag(r))/dplyr::lag(sqrt(r)),
+                  x1 = 1 / dplyr::lag(sqrt(r)),
+                  x2 = dplyr::lag(sqrt(r)))
+
+  f <- lm(y ~ 0 + x1 + x2, data = dat)
+
+  k <- as.numeric(- f$coefficients[2] / dt)
+  mu <- as.numeric(- f$coefficients[1] / f$coefficients[2])
+  sigma <- sqrt(mean(summary(f)$residuals^2) * (1/dt))
+
+  parms <- list(r0 = tail(dat$r, 1), m = mu, k = k, v = sigma)
+
+  return(parms)
+
+}
+
 
 CalVasicekHist2 <- function(n_years = 99, to=NULL, from=NULL, return.data = FALSE){
 
@@ -130,76 +173,5 @@ CalVasicekHist2 <- function(n_years = 99, to=NULL, from=NULL, return.data = FALS
                 dat = list(dat)))
   else
     return(parms)
-
-}
-
-#' CIR Historical Calibration
-#'
-#' @param n_years
-#' @param to
-#' @param from
-#' @param shift
-#' @param return.data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-CalCIRHist <- function(n_years = 99, to = NULL, from = NULL, shift = NULL, return.data = FALSE){
-
-  if(is.null(to))
-    to <- as.character(lubridate::today())
-
-  if(is.null(from))
-    from <- as.character(lubridate::ymd(to) - lubridate::years(n_years))
-
-  dat <- tidyquant::tq_get('DGS3MO', 'economic.data', from=from, to=to) %>%
-    tidyquant::tq_transmute(mutate_fun = to.monthly) %>%
-    dplyr::mutate(r = price / 100)
-
-  # Apply shift to avoid negative interest rates
-  if (!is.null(shift))
-    dat <- dat %>% dplyr::mutate(r = r + shift)
-
-  dat <- dat %>%
-    dplyr::mutate(y = (r - dplyr::lag(r))/dplyr::lag(sqrt(r)),
-                  x1 = 1 / dplyr::lag(sqrt(r)),
-                  x2 = dplyr::lag(sqrt(r)))
-
-  f <- glm(y ~ 0 + x1 + x2, data = dat)
-
-  k <- - f$coefficients[2] * 12
-  mu <- - f$coefficients[1] / f$coefficients[2]
-  sigma <- sqrt(summary(f)$dispersion) * sqrt(12)
-
-  parms <- list(r0 = tail(dat$r, 1), k = as.numeric(k), m = as.numeric(mu), v = sigma)
-
-  print(paste("Parameters calibrated with", nrow(dat), "observations from", head(dat$date, 1), "through", tail(dat$date, 1)))
-
-  if(return.data)
-    return(list(parms = parms,
-                dat = list(dat)))
-  else
-    return(parms)
-
-}
-
-CIRobjective <- function(params, dat){
-  Data = Model.Data;
-  DataF = Data(2:end);
-  DataL = Data(1:end-1);
-  Nobs = length(Data);
-  TimeStep = Model.TimeStep;
-  alpha = Params(1);
-  mu = Params(2);
-  sigma = Params(3);
-  c = 2*alpha/(sigma^2*(1-exp(-alpha*TimeStep)));
-  q = 2*alpha*mu/sigma^2-1;
-  u = c*exp(-alpha*TimeStep)*DataL;
-  v = c*DataF;
-  z = 2*sqrt(u.*v);
-  bf = besseli(q,z,1);
-  lnL= -(Nobs-1)*log(c) + sum(u + v - 0.5*q*log(v./u) - log(bf) - z);
-
 
 }
