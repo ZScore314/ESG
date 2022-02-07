@@ -71,149 +71,35 @@ CalEquityILN <- function(n_years = 20, from=NULL, to=NULL, return.data = FALSE, 
 
 }
 
-#' Calibrate Inflation
+#' Calibrate 1-factor Vasicek Model using the Maximum Likelihood Estimator
 #'
-#' Get Historical Inflation and estimate parameters of 1-factor Vasicek Model
+#' @param data numerical vector of time series data
+#' @param dt time step, default is monthly (1/12)
 #'
-#' @param n_years number of historical years to include in calibration
-#' @param to a character string representing a end date in YYYY-MM-DD format
-#' @param return.data
-#'
-#' @return list of ML parameters and data
+#' @return a named list with parameters r0 - initial value,
+#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
 #' @export
 #'
 #' @examples
-CalInflation <- function(n_years = 20, from=NULL, to=NULL, return.data = FALSE){
+CalVasicek1f <- function(dat, dt = 1/12) {
 
-  if(is.null(to))
-    to <- as.character(lubridate::today())
+  # r1 ~ Normal(r0 + k(m - r0), sigma)
 
-  if(is.null(from))
-    from <- as.character(lubridate::ymd(to) - lubridate::years(n_years))
+  n <- length(dat)
 
-  dat <- tidyquant::tq_get('CPIAUCSL', 'economic.data', from=from, to=to) %>%
-    dplyr::mutate(inf = price / dplyr::lag(price, 12) - 1)
+  x <- dat[-n]
+  y <- dat[-1]
 
-  f <- glm(inf ~ dplyr::lag(inf), data = dat)
+  f <- lm(y ~ x)
 
-  k <-(1 - f$coefficients[2]) * 12
-  mu <- f$coefficients[1] / (1 - f$coefficients[2])
-  sigma <- sqrt(summary(f)$dispersion) * sqrt(12)
+  k <- as.numeric((1 - f$coefficients[2]) / dt)
+  mu <- as.numeric(f$coefficients[1] / (1 - f$coefficients[2]))
+  sigma <- sqrt(mean(summary(f)$residuals^2) * (1/dt))
 
-  parms <- list(r0 = tail(dat$inf, 1), k = as.numeric(k), m = as.numeric(mu), v = sigma)
-
-  print(paste("Parameters calibrated with", nrow(dat), "observations from", head(dat$date, 1), "through", tail(dat$date, 1)))
-
-  if(return.data)
-    return(list(parms = parms,
-                dat = list(dat)))
-  else
-    return(parms)
-
-}
-
-CalVasicek1f <- function(data, dt = 1/12) {
-
-  n <- length(data)
-
-  x <- data[-n]
-  y <- data[-1]
-
-  Sx <- sum(x)
-  Sy <- sum(y)
-  Sxx <- as.numeric(crossprod(x, x))
-  Sxy <- as.numeric(crossprod(x, y))
-  Syy <- as.numeric(crossprod(y, y))
-
-  mu  <- (Sy * Sxx - Sx * Sxy) / (n * (Sxx - Sxy) - (Sx^2 - Sx*Sy) )
-  kappa <- -log((Sxy - mu * Sx - mu * Sy + n * mu^2) /   (Sxx - 2 * mu * Sx + n * mu^2)) / dt
-  kappa2 <- -(1/dt) * log((n * Sxy - Sx * Sy)/(n * Sxx - Sx ^ 2))
-  a <- exp(-kappa*dt)
-  sigmah2 <- (Syy - 2 * a * Sxy + a^2 * Sxx - 2 * mu * (1-a) * (Sy - a * Sx) + n * mu^2 * (1 - a)^2)/n
-  sigma <- sqrt(sigmah2 * 2 * kappa / (1 - a^2))
-
-  parms <- list(r0 = tail(data,1),
-                m = mu,
-                k = kappa,
-                k2 = kapp2,
-                v = sigma)
+  parms <- list(r0 = tail(dat, 1), m = mu, k = k, v = sigma)
 
   return(parms)
 
-}
-
-#' Vasicek Historical Calibration
-#'
-#' Calibrates the vasicek model using the maximum likelihood estimator
-#
-# TODO - Add in start and end dates.
-#
-# Args:
-#   fred.ticker: Ticker used to download the historical rates from the Federal
-#                Reserve Bank of St Louis. Defaults to DSG3MO, the 3-Month
-#                Treasury Constant Maturity Rate.
-#   dt: The change in time between observations. Defaults to 1/252 because
-#       we assume generation of daily rates and there are 252 trading days
-#       per year.
-#
-# Returns:
-#   A vector of the form c(kappa, theta, sigma, r0), where kappa is the mean
-#   reversion rate, theta is the long-term rate/mean, sigma is the volatility
-#   and r0 is the last observed rate.
-#
-# Requires:
-#   quantmod
-#' @param fred.ticker
-#' @param dt
-#'
-#' @return
-#' @export
-#'
-#' @examples
-CalVasicekHist <- function(n_years = 99, to=NULL, from=NULL, return.data = F) {
-
-
-  dt <- 1/12
-
-  if(is.null(to))
-    to <- as.character(lubridate::today())
-
-  if(is.null(from))
-    from <- as.character(lubridate::ymd(to) - lubridate::years(n_years))
-
-  dat <- tidyquant::tq_get('DGS3MO', 'economic.data', from=from, to=to) %>%
-    tidyquant::tq_transmute(mutate_fun = to.monthly) %>%
-    dplyr::mutate(price = price / 100)
-
-  n <- length(dat$price)
-
-  x <- dat$price[-n]
-  y <- dat$price[-1]
-
-  Sx <- sum(x)
-  Sy <- sum(y)
-  Sxx <- as.numeric(crossprod(x, x))
-  Sxy <- as.numeric(crossprod(x, y))
-  Syy <- as.numeric(crossprod(y, y))
-
-  mu  <- (Sy * Sxx - Sx * Sxy) / (n * (Sxx - Sxy) - (Sx^2 - Sx*Sy) )
-  kappa <- -log((Sxy - mu * Sx - mu * Sy + n * mu^2) /   (Sxx - 2 * mu * Sx + n * mu^2)) / dt
-  kappa2 <- -(1/dt) * log((n * Sxy - Sx * Sy)/(n * Sxx - Sx ^ 2))
-  a <- exp(-kappa*dt)
-  sigmah2 <- (Syy - 2 * a * Sxy + a^2 * Sxx - 2 * mu * (1-a) * (Sy - a * Sx) + n * mu^2 * (1 - a)^2)/n
-  sigma <- sqrt(sigmah2 * 2 * kappa / (1 - a^2))
-
-  parms <- list(r0 = tail(dat$price,1),
-                m = mu,
-                k = kappa,
-                k2 = kappa2,
-                v = sigma)
-
-  if(return.data)
-    return(list(parms = parms,
-                dat = list(dat)))
-  else
-    return(parms)
 
 }
 
