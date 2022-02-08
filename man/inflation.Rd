@@ -5,11 +5,12 @@
 \alias{inflation}
 \title{Historical CPI & Inflation}
 \format{
-A data frame with 888 rows and 3 variables:
+A data frame with 4 variables:
 \describe{
 \item{date}{Calendar Month}
-\item{price}{CPI}
-\item{inf}{YoY \% change in CPI}
+\item{cpi}{CPI}
+\item{inf_mon}{Monthly inflation annualized}
+\item{inf_yoy}{YoY \% change in CPI}
 ...
 }
 }

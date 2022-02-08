@@ -5,7 +5,7 @@
 \alias{equity}
 \title{Historical S&P500 Monthly Returns}
 \format{
-A data frame with 1128 rows and 2 variables:
+A data frame with 2 variables:
 \describe{
 \item{date}{Calendar Month}
 \item{return}{log return}
