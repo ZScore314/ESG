@@ -24,3 +24,16 @@
 #' }
 #' @source \url{https://finance.yahoo.com/quote/%5EGSPC}
 "equity"
+
+#' Historical Yield on U.S. Treasury Securities at 3-Month Constant Maturity
+#'
+#' A dataset containing historical seasonally adjusted CPI and inflation.
+#'
+#' @format A data frame with 484 rows and 2 variables:
+#' \describe{
+#'   \item{date}{Calendar Month}
+#'   \item{yield}{yield}
+#'   ...
+#' }
+#' @source \url{https://fred.stlouisfed.org/series/DGS3MO}
+"short_rates"

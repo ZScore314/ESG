@@ -1,3 +1,28 @@
+#' Get Treasury Yield Curve as of given date
+#'
+#' @param date a character string representing a date in YYYY-MM-DD format
+#'
+#' @return tibble with columns date, symbol, yield
+#' @export
+#'
+#' @examples GetTreasuries("2022-02-04")
+GetTreasuries <- function(date = NULL){
+
+  if(is.null(date))
+    date <- paste0(year(Sys.Date())-1,"-12-31")
+
+  yields <- tidyquant::tq_get(c("DGS1MO", "DGS3MO", "DGS6MO", "DGS1", "DGS2", "DGS5", "DGS7", "DGS10", "DGS20", "DGS30"), "economic.data",
+                   to = date, from = date)
+
+  yields <- yields %>%
+    dplyr::transmute(date = date,
+              symbol = symbol,
+              yield = price / 100)
+
+  return(yields)
+
+}
+
 #' Create Piecewise Linear from Simulation
 #'
 #' @param dat numeric vector conatining simulation data
