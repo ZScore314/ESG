@@ -137,7 +137,7 @@ gg_funnel <- function(data_forecast, data_actual, init_value, variable_name = NU
     scale_fill_manual(values = c("darkblue", "lightblue", "lightblue", "darkblue", "white")) +
     geom_line(aes(time, gg_value), data = q_med) +
     geom_line(aes(time, gg_value), data = hist) +
-    scale_y_continuous(labels = ~ AonECM::pct_format(. - gg_offset, digits = 1), breaks = seq(-.02, .30, .02) + gg_offset) +
+    scale_y_continuous(labels = ~ scales::percent(. - gg_offset)) +
     geom_hline(yintercept = 0 + gg_offset, size = 0.5, color = "grey") +
     labs(x = "t",
          y = "Yield",
