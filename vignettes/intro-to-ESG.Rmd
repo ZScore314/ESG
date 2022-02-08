@@ -1,0 +1,158 @@
+---
+title: "Introduction to ESG"
+author: "Zach Eisenstein"
+date: "`r Sys.Date()`"
+output: 
+  rmarkdown::html_vignette:
+  toc: true
+  # toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{intro-to-ESG}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+To Do:
+
+* funnel graph function
+
+```{r, include = FALSE}
+
+library(tidyverse)
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE,
+                      fig.width = 8, 
+                      fig.height = 4.5,
+                      fig.align = 'center',
+                      out.width='95%', 
+                      dpi = 200)
+
+# library(ESG)
+devtools::load_all()
+```
+
+# Introduction
+
+This package provides functions for generating economic scenario sets for insurance Economic Capital Models.
+
+The two main objectives are calibration and simulation of financial variables including: 
+
+* Inflation
+* Interest Rates (real & nominal)
+* Equity Returns
+
+This package relies heavily on the `tidyverse`.
+
+Some datasets are available with the package. Those can be accessed using the `data` command:
+
+```{r}
+data(package = "ESG")$results[, "Item"]
+```
+
+
+## Inflation
+
+### Calibration
+
+Here we will use historical inflation data to calibrate a short rate model. 
+
+```{r}
+# Load dataset
+data(inflation)
+
+head(inflation)
+
+```
+
+The tibble includes monthly CPI and annual inflation back to 1948. For more info see `help(inflation)`
+
+```{r}
+inflation %>%
+  ggplot(aes(date, inf)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Historical Inflation",
+       y = "Inflation") +
+  theme_classic()
+```
+
+Now that we have our data, we can calibrate a model to project future inflation.
+Here I will use the full dataset to fit a Vasicek model, which is mean reverting one-factor short rate model. For more see [here](https://en.wikipedia.org/wiki/Vasicek_model)
+
+```{r}
+inf_parm <- CalVasicek1f(inflation$inf)
+
+inf_parm
+```
+The result is a list with the following parameters:
+
+* **r0** - the starting value (last value of the data provided)
+* **m** - mean reverting level
+* **k** - strength of the mean reversion (annual)
+* **v** - volatility (annual) 
+
+### Simulation
+
+Now that we have our parameters, we can simulate future inflation paths. We will do this with a call to `SimVasicek1F`
+
+```{r}
+inf_sim <- SimVasicek1F(n=10, inf_parm)
+
+inf_sim
+
+inf_sim %>%
+  bind_rows(tibble(trial = 1:10, time = 0, value = inf_parm$r0)) %>%
+  ggplot(aes(time, value, group = trial)) +
+  geom_line(alpha = 1/2) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Future Projected Inflation",
+       y = "Inflation") +
+  theme_classic()
+
+```
+Data is simulated in monthly increments with a default time of 1 year. 
+If we're interested in projections further out we can adjust the time parameter `t`
+
+```{r}
+inf_sim <- SimVasicek1F(n=10, inf_parm, t = 60)
+
+inf_sim
+
+inf_sim %>%
+  bind_rows(tibble(trial = 1:10, time = 0, r = inf_parm$r0)) %>%
+  ggplot(aes(time, value, group = trial)) +
+  geom_line(alpha = 1/2) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Future Projected Inflation",
+       y = "Inflation") +
+  theme_classic()
+
+```
+
+Now let's simulate 1000 paths and view output.
+Convenience function `quibble` provides some summary statistics.
+
+```{r}
+inf_sim <- SimVasicek1F(n=1e3, inf_parm)
+
+inf_sim %>%
+  mutate(time = round(time, 3)) %>%
+  group_by(time) %>%
+  summarise(quibble(value)) %>%
+  pivot_wider(names_from = time)
+```
+
+We can also visualize the range of distributions using a funnel graph `gg_funnel`.
+This shows historical values alongside median and various quantiles of the future forecast.
+
+```{r}
+
+gg_funnel(inf_sim, tail(inflation$inf, 61), inf_parm$r0, variable_name = "Inflation", time_offset = 2022)
+
+```
+
+
+## Equities
+

@@ -79,3 +79,73 @@ quibble <- function(x, q = c(.005, .01, .025, .05, .1, .5, .9, .95, .975, .99, .
   tibble(metric = c("Mean", "Stddev", "CV", paste0("VaR", as.character(q))),
          value = c(mean(x), sd(x), sd(x)/mean(x), quantile(x, q)))
 }
+
+#' Funnel Uncertainty Plot
+#'
+#' @param data_forecast tibble with columns time, value
+#' @param data_actual numeric vector of historical monthly
+#' @param init_value value at time 0
+#' @param variable_name A string or character vector containing name of projected variable
+#' @param time_offset numeric offset for x-axis (e.g. time 0 = 2022)
+#'
+#' @return ggplot object
+#' @export
+#'
+#' @examples
+gg_funnel <- function(data_forecast, data_actual, init_value, variable_name = NULL, time_offset = 0){
+
+  funnel <- function(x, q = c(.01, .25, .5, .75, .99)) {
+    tibble(metric = c(paste0("VaR", as.character(q * 100))),
+           value = c(quantile(x, q)))
+  }
+
+  q_sum <- data_forecast %>%
+    group_by(time) %>%
+    summarise(funnel(value)) %>%
+    ungroup()
+
+  q_sum <- q_sum %>%
+    distinct(metric) %>%
+    mutate(time = 0, value = init_value) %>%
+    bind_rows(q_sum)
+
+  # calc offset for graph
+  gg_offset <- ifelse(min(q_sum$value) < 0, -min(q_sum$value), 0)
+
+  q_med <- q_sum %>%
+    filter(metric == "VaR50") %>%
+    mutate(gg_value = value + gg_offset) %>%
+    mutate(time = time + time_offset)
+
+  q_sum_gg <- q_sum %>%
+    mutate(gg_value = value + gg_offset) %>%
+    mutate(time = time + time_offset) %>%
+    group_by(time) %>%
+    mutate(gg_value = if_else(metric == "VaR1", gg_value, gg_value - lag(gg_value))) %>%
+    mutate(metric = fct_rev(fct_inorder(metric))) %>%
+    ungroup()
+
+  # historical actual
+  hist <- tibble(value = data_actual) %>%
+    mutate(time = -rev(1:n() - 1)/12) %>%
+    mutate(gg_value = value + gg_offset) %>%
+    mutate(time = time + time_offset)
+
+  q_sum_gg %>%
+    ggplot() +
+    geom_area(aes(time, gg_value, fill = metric)) +
+    scale_fill_manual(values = c("darkblue", "lightblue", "lightblue", "darkblue", "white")) +
+    geom_line(aes(time, gg_value), data = q_med) +
+    geom_line(aes(time, gg_value), data = hist) +
+    scale_y_continuous(labels = ~ AonECM::pct_format(. - gg_offset, digits = 1), breaks = seq(-.02, .30, .02) + gg_offset) +
+    geom_hline(yintercept = 0 + gg_offset, size = 0.5, color = "grey") +
+    labs(x = "t",
+         y = "Yield",
+         title = paste("Forecast & Actual", variable_name),
+         subtitle = "Shaded Regions indicate 25-75 and 1-99 percentiles") +
+    theme_classic() +
+    theme(axis.line.x = element_blank()) +
+    theme(legend.position="none")
+
+
+}

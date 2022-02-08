@@ -63,7 +63,7 @@
   }
 
   sim <- tidyr::crossing(trial = 1:n, time = 1:t / 12) %>%
-      dplyr::bind_cols(r = as.vector(r[-1,])) # remove initial state, convert to vector
+      dplyr::bind_cols(value = as.vector(r[-1,])) # remove initial state, convert to vector
 
   if (!is.null(col_rename))
     names(sim)[3] <- col_rename
