@@ -19,6 +19,29 @@ cas_inflation_vas1f <- list(r0 = 0.01, m=0.048, k=0.4, v=0.04, rmin=-0.02)
 cas_rates_vas2f <- list(param_long = list(r0 = 0.007, m = 0.028, k = 0.1, v = 0.0165, rmin = NULL),
                       param_short = list(r0 = 0, k = 1, v = 0.01, rmin = -0.05))
 
+#' Calibrate Independent LogNormal Parameters
+#'
+#' Get Historical mean and standard deviation of log returns
+#'
+#' @param dat numeric vector of log returns
+#' @param dt time step, default is monthly (1/12)
+#'
+#' @return vector with annual (arithmetic) mean and stdev of log returns
+#' @export
+#'
+#' @examples
+CalILN <- function(dat, dt=1/12){
+
+  meanlog = mean(dat)
+  sdlog = sd(dat)
+
+  mean_ann <- exp((meanlog + 0.5 * sdlog^2) * (1/dt)) - 1
+  sdlog_ann <- sdlog * sqrt(1/dt)
+
+  return(c(mean_ann, sdlog_ann))
+
+}
+
 
 #' Calibrate Equity Returns using
 #'
@@ -142,36 +165,5 @@ CalCIR1f <- function(dat, dt = 1/12, shift = NULL) {
   parms <- list(r0 = tail(dat$r, 1), m = mu, k = k, v = sigma)
 
   return(parms)
-
-}
-
-
-CalVasicekHist2 <- function(n_years = 99, to=NULL, from=NULL, return.data = FALSE){
-
-  if(is.null(to))
-    to <- as.character(lubridate::today())
-
-  if(is.null(from))
-    from <- as.character(lubridate::ymd(to) - lubridate::years(n_years))
-
-  dat <- tidyquant::tq_get('DGS3MO', 'economic.data', from=from, to=to) %>%
-    tidyquant::tq_transmute(mutate_fun = to.monthly) %>%
-    dplyr::mutate(price = price / 100)
-
-  f <- glm(price ~ lag(price), data = dat)
-
-  k <-(1 - f$coefficients[2]) * 12
-  mu <- f$coefficients[1] / (1 - f$coefficients[2])
-  sigma <- sqrt(summary(f)$dispersion) * sqrt(12)
-
-  parms <- list(r0 = tail(dat$price, 1), k = as.numeric(k), m = as.numeric(mu), v = sigma)
-
-  print(paste("Parameters calibrated with", nrow(dat), "observations from", head(dat$date, 1), "through", tail(dat$date, 1)))
-
-  if(return.data)
-    return(list(parms = parms,
-                dat = list(dat)))
-  else
-    return(parms)
 
 }

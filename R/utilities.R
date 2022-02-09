@@ -140,7 +140,7 @@ gg_funnel <- function(data_forecast, data_actual, init_value, variable_name = NU
     scale_y_continuous(labels = ~ scales::percent(. - gg_offset)) +
     geom_hline(yintercept = 0 + gg_offset, size = 0.5, color = "grey") +
     labs(x = "t",
-         y = "Yield",
+         y = "value",
          title = paste("Forecast & Actual", variable_name),
          subtitle = "Shaded Regions indicate 25-75 and 1-99 percentiles") +
     theme_classic() +
