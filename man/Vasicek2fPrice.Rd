@@ -4,10 +4,24 @@
 \alias{Vasicek2fPrice}
 \title{Bond Price under 2-factor Vasicek Model}
 \usage{
-Vasicek2fPrice(r1, r2, a1, a2, s1, s2, u, t)
+Vasicek2fPrice(r1, r2, a1, a2, v1, v2, u, t)
 }
 \arguments{
-\item{t}{}
+\item{r1}{short rate at time t}
+
+\item{r2}{mean reversion level for the short rate at time t}
+
+\item{a1}{strength of mean reversion for short rate}
+
+\item{a2}{strength of mean reversion for short rate mean reversion}
+
+\item{v1}{annualized volatility of short rate}
+
+\item{v2}{annualized volatility of short rate mean}
+
+\item{u}{mean reversion level for r2}
+
+\item{t}{maturity of zero-coupon bond}
 }
 \value{
 

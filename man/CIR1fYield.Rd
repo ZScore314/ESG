@@ -4,7 +4,7 @@
 \alias{CIR1fYield}
 \title{Bond Yield under 1-factor CIR Model}
 \usage{
-CIR1fYield(r, a, b, s, t)
+CIR1fYield(r, a, b, v, t)
 }
 \arguments{
 \item{t}{}

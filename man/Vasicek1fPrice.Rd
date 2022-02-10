@@ -4,7 +4,7 @@
 \alias{Vasicek1fPrice}
 \title{Price of bond under 1-factor Vasicek Model}
 \usage{
-Vasicek1fPrice(r, a, b, s, t)
+Vasicek1fPrice(r, a, b, v, t)
 }
 \arguments{
 \item{t}{}

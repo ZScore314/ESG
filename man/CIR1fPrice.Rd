@@ -4,7 +4,7 @@
 \alias{CIR1fPrice}
 \title{Bond Price under 1-factor CIR Model}
 \usage{
-CIR1fPrice(r, a, b, s, t)
+CIR1fPrice(r, a, b, v, t)
 }
 \arguments{
 \item{t}{}
