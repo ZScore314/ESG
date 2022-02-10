@@ -6,7 +6,7 @@
 \usage{
 SimVasicek1F(
   n = 1,
-  param_list = list(r0 = 0.01, m = 0.05, k = 0.5, v = 0.05),
+  param_list = list(r0 = 0.01, a = 0.5, b = 0.05, v = 0.05),
   rmin = NULL,
   t = 12,
   z_rand = NULL,
@@ -18,7 +18,7 @@ SimVasicek1F(
 \item{n}{number of simulated trials}
 
 \item{param_list}{a named list with parameters r0 - initial value,
-m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility}
+a - speed of mean reversion (annual), b - mean reversion level,  v - annual volatility}
 
 \item{rmin}{\itemize{
 \item optional rate lower bound
@@ -38,8 +38,9 @@ m - mean reversion level, k - speed of mean reversion (annual), v - annual volat
 data in the form of a \code{tibble} object with columns trial, time, r (or col_rename)
 }
 \description{
-Monthly Simulation of rates using 1 factor Vasicek model
+Monthly Simulation of rates using 1 factor Vasicek model of the form
+\eqn{dr_{t} = a(b - r_{t})dt+\sigma\epsilon_{t}}
 }
 \examples{
-SimVasicek1F(param_list = list(r0=.01, m=.05, k=.5, v=.05))
+SimVasicek1F(param_list = list(r0=.01, a=.5, b=.5, v=.05))
 }

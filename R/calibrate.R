@@ -7,7 +7,7 @@
 #'
 #' Convenience list of stochastic process parameters for Vasicek Model
 #' @export
-cas_inflation_vas1f <- list(r0 = 0.01, m=0.048, k=0.4, v=0.04, rmin=-0.02)
+cas_inflation_vas1f <- list(r0 = 0.01, a=0.4, b=0.048, v=0.04, rmin=-0.02)
 
 
 #' Default 2 factor Vasicek Real Interest Rate Parameters (CAS-SOA)
@@ -16,8 +16,8 @@ cas_inflation_vas1f <- list(r0 = 0.01, m=0.048, k=0.4, v=0.04, rmin=-0.02)
 #'
 #' Convenience list of stochastic process parameters for two-factor Vasicek Model
 #' @export
-cas_rates_vas2f <- list(param_long = list(r0 = 0.007, m = 0.028, k = 0.1, v = 0.0165, rmin = NULL),
-                      param_short = list(r0 = 0, k = 1, v = 0.01, rmin = -0.05))
+cas_rates_vas2f <- list( param_short = list(r0 = 0, a = 1, v = 0.01, rmin = -0.05),
+                         param_long = list(r0 = 0.007, a = 0.1, b = 0.028, v = 0.0165, rmin = NULL))
 
 #' Calibrate Independent LogNormal Parameters
 #'
@@ -100,7 +100,7 @@ CalEquityILN <- function(n_years = 20, from=NULL, to=NULL, return.data = FALSE, 
 #' @param dt time step, default is monthly (1/12)
 #'
 #' @return a named list with parameters r0 - initial value,
-#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
+#' a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility
 #' @export
 #'
 #' @examples
@@ -118,11 +118,11 @@ CalVasicek1f <- function(dat, dt = 1/12) {
 
   f <- lm(y ~ x)
 
-  k <- as.numeric((1 - f$coefficients[2]) / dt)
-  mu <- as.numeric(f$coefficients[1] / (1 - f$coefficients[2]))
+  a <- as.numeric((1 - f$coefficients[2]) / dt)
+  b <- as.numeric(f$coefficients[1] / (1 - f$coefficients[2]))
   sigma <- sqrt(mean(summary(f)$residuals^2) * (1/dt))
 
-  parms <- list(r0 = tail(dat, 1), m = mu, k = k, v = sigma)
+  parms <- list(r0 = tail(dat, 1), a = a, b = b, v = sigma)
 
   return(parms)
 
@@ -133,10 +133,10 @@ CalVasicek1f <- function(dat, dt = 1/12) {
 #'
 #' @param data numerical vector of time series data
 #' @param dt time step, default is monthly (1/12)
-#' @param shift optional shift to apply prior to fitting. This helps if negatie values may cause errors.
+#' @param shift optional shift to apply prior to fitting. This helps if negative values may cause errors.
 #'
 #' @return a named list with parameters r0 - initial value,
-#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
+#' a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility
 #' @export
 #'
 #' @examples
@@ -158,11 +158,11 @@ CalCIR1f <- function(dat, dt = 1/12, shift = NULL) {
 
   f <- lm(y ~ 0 + x1 + x2, data = dat)
 
-  k <- as.numeric(- f$coefficients[2] / dt)
-  mu <- as.numeric(- f$coefficients[1] / f$coefficients[2])
+  a <- as.numeric(- f$coefficients[2] / dt)
+  b <- as.numeric(- f$coefficients[1] / f$coefficients[2])
   sigma <- sqrt(mean(summary(f)$residuals^2) * (1/dt))
 
-  parms <- list(r0 = tail(dat$r, 1), m = mu, k = k, v = sigma)
+  parms <- list(r0 = tail(dat$r, 1), a = a, b = b, v = sigma)
 
   return(parms)
 

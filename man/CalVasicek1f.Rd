@@ -13,7 +13,7 @@ CalVasicek1f(dat, dt = 1/12)
 }
 \value{
 a named list with parameters r0 - initial value,
-m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
+a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility
 }
 \description{
 Calibrate 1-factor Vasicek Model using the Maximum Likelihood Estimator

@@ -5,7 +5,7 @@
 #' @param n number of simulated trials
 #' @param t number of future monthly timesteps
 #' @param param_list a named list with parameters r0 - initial value,
-#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
+#' a - speed of mean reversion (annual), b - mean reversion level,  v - annual volatility
 #' @param rmin - optional rate lower bound
 #' @param g optional proportional conditional volatility exponent (0 = Vasicek, 1/2 = CIR)
 #' @param z_rand optional vector standard normal random variables of length n * t
@@ -13,7 +13,7 @@
 #'
 #' @return data in the form of a `tibble` object with columns trial, time, r (or col_rename)
 #' @keywords internal
-.SimDiffusion <- function(n = 1, param_list = list(r0, m, k, v),
+.SimDiffusion <- function(n = 1, param_list = list(r0, a, b, v),
                           rmin = NULL, t = 12, g = 0, z_rand = NULL,
                           col_rename = NULL, seed = NULL){
 
@@ -22,10 +22,10 @@
     stop("'param_list' must be a list.")
 
   # Check for required parameters
-  check_param_list <- c("r0", "m", "k", "v") %in% names(param_list)
+  check_param_list <- c("r0", "a", "b", "v") %in% names(param_list)
   if (sum(check_param_list) < 4){
     stop(paste0("'param_list' does not contain required parameters. Missing: ",
-                paste(c("r0", "m", "k", "v")[check_param_list == FALSE], collapse = ", ")))
+                paste(c("r0", "a", "b", "v")[check_param_list == FALSE], collapse = ", ")))
   }
 
   # Check seed input
@@ -45,10 +45,10 @@
 
   z_rand <- matrix(z_rand, ncol = n)
 
-  if(!length(param_list$m) %in% c(1, n*t))
+  if(!length(param_list$b) %in% c(1, n*t))
     stop("Length of supplied mean reversion parameters inconsistent with required size n * t")
 
-  m <- matrix(param_list$m, t, n) # matrix of mean reversion parameters
+  b <- matrix(param_list$b, t, n) # matrix of mean reversion parameters
 
   dt <- 1/12 # timestep
 
@@ -57,7 +57,7 @@
 
   for(j in 1:n){
     for(i in 2:(t+1)){
-      dr <- param_list$k * (m[i-1, j] - r[i-1, j]) * dt + param_list$v * r[i-1, j] ^ g * z_rand[i-1, j] * sqrt(dt)
+      dr <- param_list$a * (b[i-1, j] - r[i-1, j]) * dt + param_list$v * r[i-1, j] ^ g * z_rand[i-1, j] * sqrt(dt)
       r[i, j] <- max(r[i-1, j] + dr, rmin)
     }
   }
@@ -74,12 +74,13 @@
 
 #' Simulate 1 factor Vasicek model
 #'
-#' Monthly Simulation of rates using 1 factor Vasicek model
+#' Monthly Simulation of rates using 1 factor Vasicek model of the form
+#' \eqn{dr_{t} = a(b - r_{t})dt+\sigma\epsilon_{t}}
 #'
 #' @param n number of simulated trials
 #' @param t number of future monthly timesteps
 #' @param param_list a named list with parameters r0 - initial value,
-#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
+#' a - speed of mean reversion (annual), b - mean reversion level,  v - annual volatility
 #' @param rmin - optional rate lower bound
 #' @param shift optional additive shift post simulation
 #' @param z_rand optional vector standard normal random variables of length n * t
@@ -89,8 +90,8 @@
 #' @return data in the form of a `tibble` object with columns trial, time, r (or col_rename)
 #' @export
 #'
-#' @examples SimVasicek1F(param_list = list(r0=.01, m=.05, k=.5, v=.05))
-SimVasicek1F <- function(n = 1, param_list = list(r0=.01, m=.05, k=.5, v=.05),
+#' @examples SimVasicek1F(param_list = list(r0=.01, a=.5, b=.5, v=.05))
+SimVasicek1F <- function(n = 1, param_list = list(r0=.01, a=.5, b=.05, v=.05),
                          rmin = NULL, t = 12, z_rand = NULL, col_rename = NULL,
                          seed = NULL){
 
@@ -107,30 +108,30 @@ SimVasicek1F <- function(n = 1, param_list = list(r0=.01, m=.05, k=.5, v=.05),
 #' @param n number of simulated trials
 #' @param t number of future monthly timesteps
 #' @param param_short (short rate ) a named list with parameters r0 - initial value,
-#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility, rmin - optional rate lower bound
+#' a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility, rmin - optional rate lower bound
 #' @param param_long (mean reversion term) a named list with parameters r0 - initial value,
-#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility, rmin - optional rate lower bound
+#' a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility, rmin - optional rate lower bound
 #' @param rcorr correlation between long and short processes
 #' @param seed optional starting seed
 #'
 #' @return data in the form of a `tibble` object with columns trial, time, r1, r2
 #' @export
 #'
-#' @examples SimVasicek2F(param_short = list(r0=.01, m=.05, k=.5, v=.05), param_long = list(r0=.01, m=.05, k=.5, v=.05))
+#' @examples SimVasicek2F(param_short = list(r0=.01, a=.5, b=.05, v=.05), param_long = list(r0=.01, a=.5, b=.05, v=.05))
 SimVasicek2F <- function(n = 1,
-                         param_short = list(r0=.01, m=.05, k=.5, v=.05, rmin=NULL),
-                         param_long = list(r0=.01, m=.05, k=.5, v=.05, rmin=NULL),
+                         param_short = list(r0=.01, a=.5, b=.05, v=.05, rmin=NULL),
+                         param_long = list(r0=.01, a=.5, b=.05, v=.05, rmin=NULL),
                          t = 12, rcorr = 0.5, seed = NULL){
 
   # get correlated random normals
   z_rand <-mvtnorm::rmvnorm(n * t, sigma = matrix(c(1,rcorr,rcorr,1), ncol=2), method = "chol")
 
   # First get long rates
-  r2 <- .SimDiffusion(n=n, param_list=list(r0=param_long$r0, m=param_long$m, k=param_long$k, v=param_long$v), rmin=param_long$rmin, t=t, g=0, z_rand=z_rand[,1], col_rename = "r2")
+  r2 <- .SimDiffusion(n=n, param_list=list(r0=param_long$r0, a=param_long$a, b=param_long$b, v=param_long$v), rmin=param_long$rmin, t=t, g=0, z_rand=z_rand[,1], col_rename = "r2")
   r2_mat <- matrix(r2$r2, ncol = n)
 
   # Simulate short rates using stochastic mean reversion parameter
-  r1 <- .SimDiffusion(n=n, param_list=list(r0=param_short$r0, m=r2_mat,  k=param_short$k, v=param_short$v), rmin=param_short$rmin, t=t, g=0, z_rand=z_rand[,2], col_rename = "r1")
+  r1 <- .SimDiffusion(n=n, param_list=list(r0=param_short$r0, b=r2_mat,  a=param_short$a, v=param_short$v), rmin=param_short$rmin, t=t, g=0, z_rand=z_rand[,2], col_rename = "r1")
 
   sim <- r1 %>%
     dplyr::left_join(r2, by = c("trial", "time"))
@@ -146,7 +147,7 @@ SimVasicek2F <- function(n = 1,
 #' @param n number of simulated trials
 #' @param t number of future monthly timesteps
 #' @param param_list a list with parameters r0 - initial value,
-#' m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility
+#' a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility
 #' @param rmin - optional rate lower bound
 #' @param shift optional additive shift post simulation
 #' @param z_rand optional vector standard normal random variables of length n * t
@@ -156,8 +157,8 @@ SimVasicek2F <- function(n = 1,
 #' @return data in the form of a `tibble` object with columns trial, time, r (or col_rename)
 #' @export
 #'
-#' @examples SimCIR1F(param_list = list(r0=.01, m=.05, k=.5, v=.05))
-SimCIR1F <- function(n = 1, param_list = list(r0=.01, m=.05, k=.5, v=.05),
+#' @examples SimCIR1F(param_list = list(r0=.01, a=.5, b=.05, v=.05))
+SimCIR1F <- function(n = 1, param_list = list(r0=.01, a=.5, b=.05, v=.05),
                      rmin = NULL, t = 12, z_rand = NULL, col_rename = NULL,
                      seed = NULL){
 

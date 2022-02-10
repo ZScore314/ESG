@@ -4,8 +4,8 @@ author: "Zach Eisenstein"
 date: "`r Sys.Date()`"
 output: 
   rmarkdown::html_vignette:
-  toc: true
-  # toc_depth: 2 # why doesn't this work?
+    toc: true
+    toc_depth: 2
 vignette: >
   %\VignetteIndexEntry{intro-to-ESG}
   %\VignetteEncoding{UTF-8}
@@ -28,13 +28,16 @@ knitr::opts_chunk$set(message = FALSE,
 
 # library(ESG)
 devtools::load_all()
+theme_set(theme_classic())
 ```
 
-# Introduction
+## Introduction
 
-This package provides functions for generating economic scenario sets for (Re)insurer Economic Capital Models.
+This package provides functions for generating economic scenario sets for (Re)insurer Economic Capital Models (ECMs).
 
-The two main objectives are calibration and simulation of financial variables including: 
+The motivation is to make seamless functionality for **calibration** and **simulation** of financial variables to be used standalone or within (Re)insurer ECMs.
+
+Market variables of interest include:
 
 * Inflation
 * Interest Rates (real & nominal)
@@ -42,28 +45,44 @@ The two main objectives are calibration and simulation of financial variables in
 
 This package relies heavily on the `tidyverse`.
 
-Some datasets are available with the package. Those can be accessed using the `data` command:
 
-```{r}
+## Core Functions
+
+For ease of reference, functions have been grouped into two broad categories:
+
+  1. **Calibration** (Cal*): Given user specified data returns the parameters of a given model. e.g. `CalVasicek1f()`
+  2. **Simulation**  (Sim*): Given user specified parameters returns simulation output. e.g. `SimVasicek1f()`
+
+## Datasets
+
+Some datasets are available with the package. Those can be accessed using the `data` command. Below is a list of the package's datasets:
+
+```{r, echo = F}
 data(package = "ESG")$results[, "Item"]
 ```
 
+## Interest Rates
 
-## Inflation
+The package includes tools to model various short rate models of the form: $dr_t = m(t)dt+\sigma(t)\epsilon_t$ with instantaneous drift $m$ and instantaneous standard deviation $\sigma$.
 
-Here we will use historical inflation data to calibrate a short rate model. 
+Functionality exists for short rate models include:
+
+* 1-factor Vasicek
+* Cox Ingersoll Ross
+* 2-factor Vasicek (a.k.a Hull-White)
+
+
+Here we will use historical inflation data to calibrate a 1-factor short rate model. 
+The tibble includes monthly CPI and annual inflation back to 1948. For more info see `help(inflation)`
 
 ```{r}
-# Load dataset
-data(inflation)
 
+data(inflation)
 head(inflation)
 
 ```
 
-The tibble includes monthly CPI and annual inflation back to 1948. For more info see `help(inflation)`
-
-```{r}
+```{r, echo = F}
 inflation %>%
   ggplot(aes(date, inf_yoy)) +
   geom_line() +
@@ -74,7 +93,7 @@ inflation %>%
 ```
 
 Now that we have our data, we can calibrate a model to project future inflation.
-Here I will use the full dataset to fit a Vasicek model, which is mean reverting one-factor short rate model of the form $dr_t = k(m - r_t)dt+\sigma\epsilon_t$ For more see [here](https://en.wikipedia.org/wiki/Vasicek_model)
+Here I will use the full dataset to fit a Vasicek model, which is mean reverting one-factor short rate model of the form $dr_t = a(b - r_t)dt+\sigma\epsilon_t$ For more see [here](https://en.wikipedia.org/wiki/Vasicek_model)
 
 ```{r}
 inf_parm <- CalVasicek1f(inflation$inf_yoy)
@@ -84,12 +103,12 @@ inf_parm
 The result is a list with the following parameters:
 
 * **r0** - the starting value (last value of the data provided)
-* **m** - mean reverting level
-* **k** - strength of the mean reversion (annual)
+* **a** - strength of the mean reversion (annual)
+* **b** - mean reverting level
 * **v** - volatility (annual) 
 
 Now that we have our parameters, we can simulate future inflation paths. We will do this with a call to `SimVasicek1F`.
-Let's start by simulating 10 1-year paths. 
+Let's start by simulating 10 1-year paths. Data is simulated in monthly increments with a default time of 1 year. 
 
 ```{r}
 inf_sim <- SimVasicek1F(n=10, inf_parm)
@@ -106,8 +125,8 @@ inf_sim %>%
   theme_classic()
 
 ```
-Data is simulated in monthly increments with a default time of 1 year. 
-If we're interested in projections further out we can adjust the time parameter `t`
+
+If we're interested in projections further out we can adjust the time parameter `t`.
 
 ```{r}
 inf_sim <- SimVasicek1F(n=10, inf_parm, t = 60)
@@ -120,10 +139,11 @@ inf_sim %>%
   geom_line(alpha = 1/2) +
   scale_y_continuous(labels = scales::percent) +
   labs(title = "Future Projected Inflation",
-       y = "Inflation") +
-  theme_classic()
+       y = "Inflation")
 
 ```
+
+Now we have 10 simulated 5 year paths.
 
 Now let's simulate 1000 paths and view output.
 Convenience function `quibble` provides some summary statistics.
@@ -137,11 +157,14 @@ inf_sim %>%
   mutate(time = round(time, 3)) %>%
   group_by(time) %>%
   summarise(quibble(value)) %>%
-  pivot_wider(names_from = time)
+  pivot_wider(names_from = time) %>%
+  mutate_if(is.numeric, ~ scales::percent(., accuracy = .01)) %>%
+  flextable::flextable() %>%
+  flextable::add_header_lines("Inflation Percentiles by Projection Month")
 ```
 
 We can also visualize the range of distributions using a funnel graph `gg_funnel`.
-This shows historical values alongside median and various quantiles of the future forecast.
+This shows historical values alongside ssimulation quantiles.
 This gives us a sense not only of the ranges in the projected outcomes, but also how they compare to historical results.
 
 ```{r}
@@ -153,42 +176,36 @@ gg_funnel(inf_sim, tail(inflation$inf_yoy, 61), inf_parm$r0, variable_name = "In
 
 ## Equities
 
-There are multiple modeling options for equities. `SimEquityILN` assumes monthly log-returns are independent and normally distribution. 
+Supported modeling options for equities include:
+
+* [Independent Lognormal]
+* [Regime Switching Lognormal]
+
+
+### Independent Lognormal
+
+Assumes monthly log-returns are independent and normally distribution. 
 
 The simulation output includes monthly returns, cumulative returns and accumulated value (wealth ratio)
 
 ```{r}
 SimEquityILN()
-
 ```
 
-If we wanted to calibrate the parameters using actual data we could utilize the `equity` dataset. This includes monthly (continous) returns back to December 1927.
+If we wanted to calibrate the parameters using actual data we could utilize the `equity` dataset. This includes monthly (continuous) returns back to December 1927.
 ```{r}
 data(equity)
 head(equity)
 ```
 
-Rolling Mean and Volatility of log returns
-```{r}
-equity %>%
-  filter(date > "1960-01-01") %>%
-  # mutate(ma = zoo::rollsum(logreturn, 12, fill = NA)) %>%
-  mutate(masd = zoo::rollapply(logreturn, 12, sd, fill = NA) * sqrt(12)) %>%
-  # pivot_longer(c(ma, masd)) %>%
-  ggplot(aes(date, masd)) +
-  geom_line()
-
-```
-
-
 We will use the past 20 years to calibrate the lognormal parameters uses maximum likelihood. 
 
 ```{r}
-iln_param <- tail(equity$logreturn, 240) %>% CalILN
-iln_param
+iln_param <- CalILN(tail(equity$logreturn, 240))
 ```
 
 Here we are assuming a `r scales::percent(iln_param[1], accuracy = 0.1)` mean and `r scales::percent(iln_param[2], accuracy = 0.1)` volatility.
+(note: the mean is expressed as the _annual_ _arithmetic_ return.) 
 
 
 We can now use those parameters to simulate. 
@@ -199,12 +216,61 @@ sim_iln %>%
   mutate(time = round(time, 3)) %>%
   group_by(time) %>%
   summarise(quibble(cum_return)) %>%
-  pivot_wider(names_from = time)
-
-sim_iln %>%
-  mutate(time = as.factor(time)) %>%
-  ggplot(aes(time, cum_return)) +
-    geom_boxplot()
+  pivot_wider(names_from = time) %>%
+  mutate_if(is.numeric, ~ scales::percent(., accuracy = .01)) %>%
+  flextable::flextable() %>%
+  flextable::add_header_lines("Inflation Percentiles by Projection Month")
 
 ```
+
+### Regime Switching Lognormal
+
+Historical data shows evidence of volatility "bunching", a feature not captured in the independent lognormal model. 
+```{r, echo = F}
+
+equity %>%
+  filter(date > "1960-01-01") %>%
+  mutate(`Volatility` = zoo::rollapply(logreturn, 12, sd, fill = NA) * sqrt(12)) %>%
+  rename(`Total Return` = logreturn) %>%
+  pivot_longer(c(-date)) %>%
+  ggplot(aes(date, value, group = name)) +
+  geom_line(aes(linetype=name)) +
+  scale_y_continuous(labels = scales::percent) + 
+  labs(title = "S&P 500 Monthly Total Returns and Annual Volatility",
+       x = "Year",
+       y = NULL,
+       caption = "volatility = 12-month moving standard deviation of log returns") +
+  theme(legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  guides(linetype = guide_legend(reverse = T))
+
+```
+
+A regime switching model allows for the modeling of this dynamic using distinct parameters in different states or "regimes". 
+
+Within a given state ("regime"), log returns are independent, normally distributed, but the markov process of regime switching allows for volatility clustering. 
+
+In addition to regime mean and volatility of returns, probabilities of transitioning between regimes is required.
+
+Below we will simulate a single trial with 1000 monthly timesteps. 
+
+```{r}
+
+set.seed(1)
+x <- SimEquityRSLN(n = 1,
+              pswitch = c(.011, .059),
+              means = c(.008, -.011),
+              vols = c(.039, .113),
+              .detail = T,
+              t = 1e3)
+
+x  %>% ggplot(aes(x = seq(1:1e3), y = state)) +
+  geom_line() +
+  scale_y_continuous(breaks = c(0, 1)) +
+  labs(x = "Month")
+
+```
+
+You can see the shifts between the baseline (0 state) and higher volatility states The unconditional probability of being in state 1 is 
+$\frac{p_{1,2}}{p_{1,2} + p_{2,1}}$ or ~15% under these assumptions
 

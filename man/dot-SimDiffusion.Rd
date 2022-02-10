@@ -6,7 +6,7 @@
 \usage{
 .SimDiffusion(
   n = 1,
-  param_list = list(r0, m, k, v),
+  param_list = list(r0, a, b, v),
   rmin = NULL,
   t = 12,
   g = 0,
@@ -19,7 +19,7 @@
 \item{n}{number of simulated trials}
 
 \item{param_list}{a named list with parameters r0 - initial value,
-m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility}
+a - speed of mean reversion (annual), b - mean reversion level,  v - annual volatility}
 
 \item{rmin}{\itemize{
 \item optional rate lower bound

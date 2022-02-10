@@ -6,8 +6,8 @@
 \usage{
 SimVasicek2F(
   n = 1,
-  param_short = list(r0 = 0.01, m = 0.05, k = 0.5, v = 0.05, rmin = NULL),
-  param_long = list(r0 = 0.01, m = 0.05, k = 0.5, v = 0.05, rmin = NULL),
+  param_short = list(r0 = 0.01, a = 0.5, b = 0.05, v = 0.05, rmin = NULL),
+  param_long = list(r0 = 0.01, a = 0.5, b = 0.05, v = 0.05, rmin = NULL),
   t = 12,
   rcorr = 0.5,
   seed = NULL
@@ -17,10 +17,10 @@ SimVasicek2F(
 \item{n}{number of simulated trials}
 
 \item{param_short}{(short rate ) a named list with parameters r0 - initial value,
-m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility, rmin - optional rate lower bound}
+a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility, rmin - optional rate lower bound}
 
 \item{param_long}{(mean reversion term) a named list with parameters r0 - initial value,
-m - mean reversion level, k - speed of mean reversion (annual), v - annual volatility, rmin - optional rate lower bound}
+a - speed of mean reversion (annual), b - mean reversion level, v - annual volatility, rmin - optional rate lower bound}
 
 \item{t}{number of future monthly timesteps}
 
@@ -35,5 +35,5 @@ data in the form of a \code{tibble} object with columns trial, time, r1, r2
 Monthly Simulation of Inflation using 2-factor Vasicek (Hull White) Model
 }
 \examples{
-SimVasicek2F(param_short = list(r0=.01, m=.05, k=.5, v=.05), param_long = list(r0=.01, m=.05, k=.5, v=.05))
+SimVasicek2F(param_short = list(r0=.01, a=.5, b=.05, v=.05), param_long = list(r0=.01, a=.5, b=.05, v=.05))
 }
